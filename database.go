@@ -62,7 +62,7 @@ type MessageAndPeer struct {
 }
 
 func NewDatabase(importMode bool) (*Database, error) {
-	boil.DebugMode = true
+	// boil.DebugMode = true
 	db, err := sql.Open("sqlite", "./data.db?cache=shared")
 	if err != nil {
 		return nil, err
