@@ -208,6 +208,18 @@ func (m *SearchBot) inlineQueryRequest(iq *gotgbot.InlineQuery) bool {
 }
 
 func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error {
+	count, err := m.db.GetChatPeersCount(ctx.InlineQuery.From.Id)
+	if err != nil && err != sql.ErrNoRows {
+		log.Println(err)
+	}
+	if err == sql.ErrNoRows || count <= 0 {
+		_, err = b.AnswerInlineQuery(ctx.InlineQuery.Id, []gotgbot.InlineQueryResult{gotgbot.InlineQueryResultCachedSticker{
+			Id:            "unauthorized_sticker",
+			StickerFileId: "CAACAgUAAxkDAAEFBIhjffVfXIFyngE4vR2Zg_uDkDS41gACMAsAAoB48FdrYCP5TE3CEh4E",
+		}}, nil)
+		return err
+	}
+
 	chatPeers, err := m.db.GetChatPeersFromPeerId(ctx.InlineQuery.From.Id)
 	if err != nil && err != sql.ErrNoRows {
 		return err
