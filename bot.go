@@ -299,8 +299,8 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	for _, mnp := range messageAndPeers {
 		text := mnp.Text
-		if len(text) > 100 {
-			text = text[:100]
+		if len(text) > 64 {
+			text = text[:64]
 		}
 		results = append(results, gotgbot.InlineQueryResultArticle{
 			Id:          strconv.FormatInt(mnp.MSGID, 10),
