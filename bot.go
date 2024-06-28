@@ -207,10 +207,13 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 		log.Println(err)
 	}
 	if err == sql.ErrNoRows || count <= 0 {
-		_, err = b.AnswerInlineQuery(ctx.InlineQuery.Id, []gotgbot.InlineQueryResult{gotgbot.InlineQueryResultCachedSticker{
+		_, err = ctx.InlineQuery.Answer(b, []gotgbot.InlineQueryResult{gotgbot.InlineQueryResultCachedSticker{
 			Id:            "unauthorized_sticker",
 			StickerFileId: "CAACAgUAAxkDAAEFBIhjffVfXIFyngE4vR2Zg_uDkDS41gACMAsAAoB48FdrYCP5TE3CEh4E",
-		}}, nil)
+		}}, &gotgbot.AnswerInlineQueryOpts{
+			CacheTime:  300,
+			IsPersonal: true,
+		})
 		return err
 	}
 
@@ -270,14 +273,17 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	if len(messageAndPeers) <= 0 {
-		_, err = b.AnswerInlineQuery(ctx.InlineQuery.Id, []gotgbot.InlineQueryResult{gotgbot.InlineQueryResultArticle{
+		_, err = ctx.InlineQuery.Answer(b, []gotgbot.InlineQueryResult{gotgbot.InlineQueryResultArticle{
 			Id:    "info",
 			Title: "No results found",
 			InputMessageContent: gotgbot.InputTextMessageContent{
 				MessageText: ".",
 			},
 			Description: "Please refine your search query and try again",
-		}}, nil)
+		}}, &gotgbot.AnswerInlineQueryOpts{
+			CacheTime:  300,
+			IsPersonal: true,
+		})
 		return err
 	}
 
