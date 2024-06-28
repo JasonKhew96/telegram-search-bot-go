@@ -1,0 +1,5 @@
+wipe = true
+
+[sqlite3]
+dbname = "data.db"
+
