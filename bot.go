@@ -302,12 +302,16 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 		if len(text) > 100 {
 			text = text[:100]
 		}
+		expandText := mnp.Text
+		if len(expandText) > 3072 {
+			expandText = expandText[:3072]
+		}
 		results = append(results, gotgbot.InlineQueryResultArticle{
 			Id:          strconv.FormatInt(mnp.MSGID, 10),
 			Title:       text,
 			Description: fmt.Sprintf("%s %s@%s", mnp.Timestamp.In(m.loc).Format(time.DateTime), mnp.FullName, mnp.Title),
 			InputMessageContent: gotgbot.InputTextMessageContent{
-				MessageText: text2Via(text2ExpandableQuote(mnp.Text), mnp.Message.ChatID, mnp.MSGID, mnp.FullName),
+				MessageText: text2Via(text2ExpandableQuote(expandText), mnp.Message.ChatID, mnp.MSGID, mnp.FullName),
 				ParseMode:   "MarkdownV2",
 				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 					IsDisabled: true,
