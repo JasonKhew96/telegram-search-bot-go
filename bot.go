@@ -66,6 +66,7 @@ func StartBot() {
 			log.Println(err)
 			return ext.DispatcherActionNoop
 		},
+		MaxRoutines: 1,
 	})
 	updater := ext.NewUpdater(dispatcher, nil)
 
