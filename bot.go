@@ -258,12 +258,10 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 		queries = append(queries, q)
 	}
 
-	timeNow := time.Now()
 	messageAndPeers, err := m.db.SearchMessages(chatIds, username, peerId, queries, (page-1)*49)
 	if err != nil {
 		return err
 	}
-	log.Printf("elapsed: %f", time.Since(timeNow).Seconds())
 
 	if len(messageAndPeers) <= 0 {
 		_, err = b.AnswerInlineQuery(ctx.InlineQuery.Id, []gotgbot.InlineQueryResult{gotgbot.InlineQueryResultArticle{
