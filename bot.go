@@ -198,14 +198,7 @@ func (m *SearchBot) chatMemberResponse(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (m *SearchBot) inlineQueryRequest(iq *gotgbot.InlineQuery) bool {
-	count, err := m.db.GetChatPeersCount(iq.From.Id)
-	if err != nil && err != sql.ErrNoRows {
-		log.Println(err)
-	}
-	if err == sql.ErrNoRows {
-		return false
-	}
-	return count > 0
+	return true
 }
 
 func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error {
