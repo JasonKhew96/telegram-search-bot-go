@@ -3,8 +3,6 @@ name: Docker Image CI
 on:
   push:
     branches: ["master"]
-  pull_request:
-    branches: ["master"]
 
 env:
   REGISTRY: ghcr.io
@@ -44,7 +42,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: Build and push Docker image (push)
-        if: github.event_name == 'push'
+        id: push
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -52,15 +50,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Build and push Docker image (pull request)
-        if: github.event_name == 'pull_request'
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: pr-${{ github.event.pull_request.number }}
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
