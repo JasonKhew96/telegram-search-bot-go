@@ -54,6 +54,14 @@ func StartBot() {
 		log.Fatalln(err)
 	}
 
+	if ok, err := bot.DeleteMyCommands(nil); err != nil {
+		log.Println(err)
+	} else if !ok {
+		log.Println("DeleteMyCommands failed")
+	} else {
+		log.Println("DeleteMyCommands succeeded")
+	}
+
 	m := SearchBot{
 		config: config,
 		db:     database,
