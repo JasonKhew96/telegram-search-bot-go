@@ -81,7 +81,7 @@ func StartBot() {
 		EnableWebhookDeletion: true,
 		GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
 			Timeout:        60,
-			AllowedUpdates: []string{"message", "edited_message", "channel_post", "edited_channel_post", "inline_query", "chat_member"},
+			AllowedUpdates: []string{"message", "edited_message", "inline_query", "chat_member"},
 		},
 	})
 	if err != nil {
