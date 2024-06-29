@@ -1,8 +1,9 @@
-version: "3.9"
 services:
   tgbot:
     container_name: tgbot
     image: ghcr.io/jasonkhew96/telegram-search-bot-go:latest
     restart: always
     volumes:
-      - ./:/app/config
+      - ./config.yaml:/app/config.yaml
+      - ./data.db:/app/data.db
+
