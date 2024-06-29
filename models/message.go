@@ -29,6 +29,7 @@ type Message struct {
 	MSGID     int64     `boil:"msg_id" json:"msg_id" toml:"msg_id" yaml:"msg_id"`
 	Text      string    `boil:"text" json:"text" toml:"text" yaml:"text"`
 	Timestamp time.Time `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
+	Deleted   bool      `boil:"deleted" json:"deleted" toml:"deleted" yaml:"deleted"`
 
 	R *messageR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L messageL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -41,6 +42,7 @@ var MessageColumns = struct {
 	MSGID     string
 	Text      string
 	Timestamp string
+	Deleted   string
 }{
 	ID:        "id",
 	ChatID:    "chat_id",
@@ -48,6 +50,7 @@ var MessageColumns = struct {
 	MSGID:     "msg_id",
 	Text:      "text",
 	Timestamp: "timestamp",
+	Deleted:   "deleted",
 }
 
 var MessageTableColumns = struct {
@@ -57,6 +60,7 @@ var MessageTableColumns = struct {
 	MSGID     string
 	Text      string
 	Timestamp string
+	Deleted   string
 }{
 	ID:        "message.id",
 	ChatID:    "message.chat_id",
@@ -64,6 +68,7 @@ var MessageTableColumns = struct {
 	MSGID:     "message.msg_id",
 	Text:      "message.text",
 	Timestamp: "message.timestamp",
+	Deleted:   "message.deleted",
 }
 
 // Generated where
@@ -96,6 +101,7 @@ var MessageWhere = struct {
 	MSGID     whereHelperint64
 	Text      whereHelperstring
 	Timestamp whereHelpertime_Time
+	Deleted   whereHelperbool
 }{
 	ID:        whereHelperstring{field: "\"message\".\"id\""},
 	ChatID:    whereHelperint64{field: "\"message\".\"chat_id\""},
@@ -103,6 +109,7 @@ var MessageWhere = struct {
 	MSGID:     whereHelperint64{field: "\"message\".\"msg_id\""},
 	Text:      whereHelperstring{field: "\"message\".\"text\""},
 	Timestamp: whereHelpertime_Time{field: "\"message\".\"timestamp\""},
+	Deleted:   whereHelperbool{field: "\"message\".\"deleted\""},
 }
 
 // MessageRels is where relationship names are stored.
@@ -122,9 +129,9 @@ func (*messageR) NewStruct() *messageR {
 type messageL struct{}
 
 var (
-	messageAllColumns            = []string{"id", "chat_id", "from_id", "msg_id", "text", "timestamp"}
+	messageAllColumns            = []string{"id", "chat_id", "from_id", "msg_id", "text", "timestamp", "deleted"}
 	messageColumnsWithoutDefault = []string{"id", "chat_id", "from_id", "msg_id", "text", "timestamp"}
-	messageColumnsWithDefault    = []string{}
+	messageColumnsWithDefault    = []string{"deleted"}
 	messagePrimaryKeyColumns     = []string{"id"}
 	messageGeneratedColumns      = []string{}
 )

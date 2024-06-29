@@ -18,6 +18,12 @@ func TestParent(t *testing.T) {
 	t.Run("Peers", testPeers)
 }
 
+func TestSoftDelete(t *testing.T) {}
+
+func TestQuerySoftDeleteAll(t *testing.T) {}
+
+func TestSliceSoftDeleteAll(t *testing.T) {}
+
 func TestDelete(t *testing.T) {
 	t.Run("Chats", testChatsDelete)
 	t.Run("ChatPeers", testChatPeersDelete)

@@ -8,6 +8,7 @@ require (
 	github.com/friendsofgo/errors v0.9.2
 	github.com/liuzl/gocc v0.0.0-20231231122217-0372e1059ca5
 	github.com/pkg/errors v0.9.1
+	github.com/rubenv/sql-migrate v1.6.1
 	github.com/spf13/viper v1.19.0
 	github.com/volatiletech/randomize v0.0.1
 	github.com/volatiletech/sqlboiler/v4 v4.16.2
@@ -20,6 +21,7 @@ require (
 	github.com/adamzy/cedar-go v0.0.0-20170805034717-80a9c64b256d // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect

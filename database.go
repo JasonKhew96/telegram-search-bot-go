@@ -10,6 +10,7 @@ import (
 
 	"github.com/JasonKhew96/telegram-search-bot-go/models"
 	"github.com/liuzl/gocc"
+	migrate "github.com/rubenv/sql-migrate"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	_ "modernc.org/sqlite"
@@ -22,12 +23,14 @@ CREATE TABLE "chat" (
     "enabled" BOOLEAN NOT NULL,
     PRIMARY KEY("id")
 );
+
 CREATE TABLE "chat_peer" (
     "id" INTEGER NOT NULL,
     "chat_id" INTEGER NOT NULL,
     "peer_id" INTEGER NOT NULL,
     PRIMARY KEY("id")
 );
+
 CREATE TABLE "message" (
     "id" TEXT NOT NULL,
     "chat_id" INTEGER NOT NULL,
@@ -35,17 +38,25 @@ CREATE TABLE "message" (
     "msg_id" INTEGER NOT NULL,
     "text" TEXT NOT NULL,
     "timestamp" DATETIME NOT NULL,
+    "deleted" BOOLEAN NOT NULL DEFAULT 0,
     PRIMARY KEY("id")
 );
-CREATE INDEX "idx_message_chat_id_msg_id_text" ON "message" ("chat_id", "msg_id", "text");
+
+CREATE INDEX "idx_message" ON "message" (
+    "chat_id",
+    "from_id",
+    "msg_id",
+    "text",
+    "timestamp",
+    "deleted"
+);
+
 CREATE TABLE "peer" (
     "id" INTEGER NOT NULL,
     "full_name" TEXT NOT NULL,
     "username" TEXT NOT NULL,
     PRIMARY KEY("id")
 );
-
-DROP INDEX IF EXISTS "idx_message_chat_id_msg_id_text";
 */
 
 type Database struct {
@@ -69,13 +80,38 @@ func NewDatabase(databaseFile string, importMode bool) (*Database, error) {
 		return nil, err
 	}
 
+	// migrations start
+	migrations := &migrate.MemoryMigrationSource{
+		Migrations: []*migrate.Migration{
+			{
+				Id: "1_deleted_message",
+				Up: []string{
+					`ALTER TABLE "message" ADD COLUMN "deleted" BOOLEAN NOT NULL DEFAULT 0;`,
+					`DROP INDEX IF EXISTS "idx_message_chat_id_msg_id";`,
+					`CREATE INDEX "idx_message" ON "message" ("chat_id", "from_id", "msg_id", "text", "timestamp", "deleted");`,
+				},
+				Down: []string{
+					`ALTER TABLE "message" DROP COLUMN "deleted";`,
+					`DROP INDEX IF EXISTS "idx_message";`,
+					`CREATE INDEX "idx_message_chat_id_msg_id" ON "message" ("chat_id", "msg_id", "text");`,
+				},
+			},
+		},
+	}
+	migrationCount, err := migrate.Exec(db, "sqlite3", migrations, migrate.Up)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Applied %d migrations", migrationCount)
+	// migrations end
+
 	s2t, err := gocc.New("s2t")
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	t2s, err := gocc.New("t2s")
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 
 	if importMode {
@@ -141,7 +177,7 @@ func (d *Database) GetMessageCount() (int64, error) {
 }
 
 func (d *Database) SearchMessages(chatId []int64, username string, peerId int64, texts []string, offset int) ([]*MessageAndPeer, error) {
-	queryMods := []qm.QueryMod{qm.Select("message.msg_id", "message.chat_id", "message.text", "message.timestamp", "peer.full_name", "chat.title", "COUNT() OVER() as total_count"), qm.From("message"), qm.InnerJoin("peer on peer.id = message.from_id"), qm.InnerJoin("chat on chat.id = message.chat_id"), qm.Offset(offset), qm.Limit(49), qm.OrderBy("message.timestamp DESC")}
+	queryMods := []qm.QueryMod{qm.Select("message.msg_id", "message.chat_id", "message.text", "message.timestamp", "peer.full_name", "chat.title", "COUNT() OVER() as total_count"), qm.From("message"), qm.InnerJoin("peer on peer.id = message.from_id"), qm.InnerJoin("chat on chat.id = message.chat_id"), models.MessageWhere.Deleted.EQ(false), qm.Offset(offset), qm.Limit(49), qm.OrderBy("message.timestamp DESC")}
 	for _, c := range chatId {
 		queryMods = append(queryMods, models.MessageWhere.ChatID.EQ(c))
 	}
@@ -193,7 +229,7 @@ func (d *Database) UpsertMessage(chatId int64, fromId int64, msgId int64, text s
 		Text:      text,
 		Timestamp: time.Unix(timestamp, 0),
 	}
-	return message.Upsert(d.ctx, d.db, true, []string{"id"}, boil.Infer(), boil.Infer())
+	return message.Upsert(d.ctx, d.db, true, []string{"id"}, boil.Blacklist("deleted"), boil.Infer())
 }
 
 func (d *Database) GetChatPeersCount(peerId int64) (int64, error) {

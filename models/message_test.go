@@ -568,7 +568,7 @@ func testMessagesSelect(t *testing.T) {
 }
 
 var (
-	messageDBTypes = map[string]string{`ID`: `TEXT`, `ChatID`: `INTEGER`, `FromID`: `INTEGER`, `MSGID`: `INTEGER`, `Text`: `TEXT`, `Timestamp`: `DATETIME`}
+	messageDBTypes = map[string]string{`ID`: `TEXT`, `ChatID`: `INTEGER`, `FromID`: `INTEGER`, `MSGID`: `INTEGER`, `Text`: `TEXT`, `Timestamp`: `DATETIME`, `Deleted`: `BOOLEAN`}
 	_              = bytes.MinRead
 )
 

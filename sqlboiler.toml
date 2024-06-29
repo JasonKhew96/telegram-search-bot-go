@@ -1,5 +1,6 @@
 wipe = true
+add-soft-deletes = true
 
 [sqlite3]
 dbname = "data.db"
-
+blacklist = ["gorp_migrations"]
