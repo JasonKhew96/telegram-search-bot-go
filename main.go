@@ -6,6 +6,7 @@ import (
 
 func main() {
 	importedFile := flag.String("import", "", "import tdesktop exported json file")
+	configFile := flag.String("config", "config.json", "config file")
 	flag.Parse()
 
 	if *importedFile != "" {
@@ -13,5 +14,5 @@ func main() {
 		return
 	}
 
-	StartBot()
+	StartBot(*configFile)
 }

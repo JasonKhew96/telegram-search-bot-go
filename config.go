@@ -12,8 +12,8 @@ type Config struct {
 	DropPendingUpdate bool   `yaml:"drop_pending_update"`
 }
 
-func ParseConfig() (*Config, error) {
-	f, err := os.Open("config.yaml")
+func ParseConfig(configFile string) (*Config, error) {
+	f, err := os.Open(configFile)
 	if err != nil {
 		return nil, err
 	}

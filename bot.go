@@ -21,13 +21,13 @@ type SearchBot struct {
 	loc    *time.Location
 }
 
-func StartBot() {
+func StartBot(configFile string) {
 	loc, err := time.LoadLocation("Asia/Taipei")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	config, err := ParseConfig()
+	config, err := ParseConfig(configFile)
 	if err != nil {
 		log.Fatalln(err)
 	}
