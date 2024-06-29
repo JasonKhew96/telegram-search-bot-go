@@ -181,6 +181,9 @@ func (m *SearchBot) commandDeleteResponse(b *gotgbot.Bot, ctx *ext.Context) erro
 	}
 
 	deletedMessage, err := ctx.EffectiveMessage.Reply(b, "Message deleted", nil)
+	if err != nil {
+		return err
+	}
 	go func(msg *gotgbot.Message) {
 		time.Sleep(10 * time.Second)
 		_, err := b.DeleteMessage(msg.Chat.Id, msg.MessageId, nil)
@@ -189,7 +192,7 @@ func (m *SearchBot) commandDeleteResponse(b *gotgbot.Bot, ctx *ext.Context) erro
 		}
 	}(deletedMessage)
 
-	return err
+	return nil
 }
 
 func (m *SearchBot) commandStartStopResponse(b *gotgbot.Bot, ctx *ext.Context) error {
