@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -15,10 +16,11 @@ import (
 )
 
 type SearchBot struct {
-	config *Config
-	db     *Database
-	bot    *gotgbot.Bot
-	loc    *time.Location
+	config     *Config
+	db         *Database
+	bot        *gotgbot.Bot
+	loc        *time.Location
+	adminCache map[int64][]gotgbot.ChatMember
 }
 
 func StartBot(databaseFile, configFile string) {
@@ -63,10 +65,11 @@ func StartBot(databaseFile, configFile string) {
 	}
 
 	m := SearchBot{
-		config: config,
-		db:     database,
-		bot:    bot,
-		loc:    loc,
+		config:     config,
+		db:         database,
+		bot:        bot,
+		loc:        loc,
+		adminCache: make(map[int64][]gotgbot.ChatMember),
 	}
 
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
@@ -78,6 +81,7 @@ func StartBot(databaseFile, configFile string) {
 	})
 	updater := ext.NewUpdater(dispatcher, nil)
 
+	dispatcher.AddHandler(handlers.NewCommand("dlog", m.commandDeleteResponse).SetTriggers([]rune("/!")))
 	dispatcher.AddHandler(handlers.NewCommand("start", m.commandStartStopResponse).SetTriggers([]rune("/!")))
 	dispatcher.AddHandler(handlers.NewCommand("stop", m.commandStartStopResponse).SetTriggers([]rune("/!")))
 	dispatcher.AddHandler(handlers.NewChatMember(m.chatMemberRequest, m.chatMemberResponse))
@@ -97,6 +101,88 @@ func StartBot(databaseFile, configFile string) {
 	}
 	log.Printf("Bot started as %s\n", bot.User.Username)
 	updater.Idle()
+}
+
+func (m *SearchBot) commandDeleteResponse(b *gotgbot.Bot, ctx *ext.Context) error {
+	if ctx.EffectiveChat.Type == "private" {
+		return nil
+	}
+	if ctx.EffectiveSender.User == nil {
+		return nil
+	}
+
+	chat, err := m.db.GetChat(ctx.EffectiveChat.Id)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	if err == sql.ErrNoRows || !chat.Enabled {
+		return nil
+	}
+
+	re, err := regexp.Compile(`https://t\.me/c/(\d+)/(\d+)`)
+	if err != nil {
+		return err
+	}
+	matches := re.FindStringSubmatch(ctx.EffectiveMessage.GetText())
+	if len(matches) != 3 {
+		return nil
+	}
+
+	chatId, err := strconv.ParseInt(matches[1], 10, 64)
+	if err != nil {
+		return err
+	}
+	chatId = convert2BotChatId(chatId)
+
+	if chatId != ctx.EffectiveChat.Id {
+		return nil
+	}
+
+	chatPeer, err := m.db.GetChatPeerCount(ctx.EffectiveChat.Id, ctx.EffectiveSender.Id())
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	if err == sql.ErrNoRows || chatPeer <= 0 {
+		return nil
+	}
+
+	msgId, err := strconv.ParseInt(matches[2], 10, 64)
+	if err != nil {
+		return err
+	}
+
+	admins, err := m.GetChatAdministrators(chatId)
+	if err != nil {
+		return err
+	}
+	isAdmin := false
+	for _, admin := range admins {
+		if admin.GetUser().Id == ctx.EffectiveSender.Id() {
+			isAdmin = true
+			break
+		}
+	}
+
+	msg, err := m.db.GetMessage(chatId, msgId)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	if err == sql.ErrNoRows {
+		_, err = ctx.EffectiveMessage.Reply(b, "Message not found", nil)
+		return err
+	}
+	if msg.FromID != ctx.EffectiveSender.Id() && !isAdmin {
+		_, err = ctx.EffectiveMessage.Reply(b, "Unauthorized", nil)
+		return err
+	}
+
+	if err := m.db.DeleteMessage(chatId, msgId); err != nil {
+		return err
+	}
+
+	_, err = ctx.EffectiveMessage.Reply(b, "Message deleted", nil)
+
+	return err
 }
 
 func (m *SearchBot) commandStartStopResponse(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -165,8 +251,12 @@ func (m *SearchBot) commandStartStopResponse(b *gotgbot.Bot, ctx *ext.Context) e
 	return err
 }
 
+func isAdmin(status string) bool {
+	return status == "administrator" || status == "creator"
+}
+
 func isMember(status string) bool {
-	return status == "member" || status == "administrator" || status == "creator"
+	return status == "member" || isAdmin(status)
 }
 
 func isNotMember(status string) bool {
@@ -189,6 +279,35 @@ func (m *SearchBot) chatMemberResponse(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.ChatMember.Chat
 	old := ctx.ChatMember.OldChatMember
 	new := ctx.ChatMember.NewChatMember
+	if !isAdmin(old.GetStatus()) && isAdmin(new.GetStatus()) {
+		admins, err := m.GetChatAdministrators(chat.Id)
+		if err != nil {
+			log.Println(err)
+		} else {
+			newAdmins := []gotgbot.ChatMember{}
+			for _, admin := range admins {
+				if admin.GetUser().Id == new.GetUser().Id {
+					continue
+				}
+				newAdmins = append(newAdmins, admin)
+			}
+			m.adminCache[chat.Id] = newAdmins
+		}
+	}
+	if isAdmin(old.GetStatus()) && !isAdmin(new.GetStatus()) {
+		admins, err := m.GetChatAdministrators(chat.Id)
+		if err != nil {
+			log.Println(err)
+		}
+		newAdmins := []gotgbot.ChatMember{}
+		for _, admin := range admins {
+			if admin.GetUser().Id == new.GetUser().Id {
+				continue
+			}
+			newAdmins = append(newAdmins, admin)
+		}
+		m.adminCache[chat.Id] = newAdmins
+	}
 	if isNotMember(old.GetStatus()) && isMember(new.GetStatus()) {
 		// new member
 		user := new.GetUser()
@@ -377,4 +496,15 @@ func (m *SearchBot) newMessageResponse(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	text := ctx.EffectiveMessage.GetText()
 	return m.db.UpsertMessage(ctx.EffectiveChat.Id, ctx.EffectiveSender.Id(), ctx.EffectiveMessage.MessageId, text, ctx.EffectiveMessage.Date)
+}
+
+func (m *SearchBot) GetChatAdministrators(chatId int64) ([]gotgbot.ChatMember, error) {
+	if admins, ok := m.adminCache[chatId]; ok {
+		return admins, nil
+	}
+	admins, err := m.bot.GetChatAdministrators(chatId, nil)
+	if err != nil {
+		return nil, err
+	}
+	return admins, nil
 }

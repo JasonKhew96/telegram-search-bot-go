@@ -36,16 +36,25 @@ func text2ExpandableQuote(text string) string {
 }
 
 func generateTelegramLink(chatId, msgId int64) string {
-	return fmt.Sprintf("https://t.me/c/%s/%d", convertChatId(chatId), msgId)
+	return fmt.Sprintf("https://t.me/c/%s/%d", convert2NativeChatId(chatId), msgId)
 }
 
 func text2Via(text string, chatId int64, msgId int64, fullname string) string {
 	return fmt.Sprintf("%s\n[Via %s](%s)", text, escapeMarkdownV2(fullname), generateTelegramLink(chatId, msgId))
 }
 
-func convertChatId(chatId int64) string {
+func convert2NativeChatId(chatId int64) string {
 	text := strconv.FormatInt(chatId, 10)
 	return strings.TrimPrefix(text, "-100")
+}
+
+func convert2BotChatId(chatId int64) int64 {
+	text := strconv.FormatInt(chatId, 10)
+	newChatId, err := strconv.ParseInt("-100"+text, 10, 64)
+	if err != nil {
+		return chatId
+	}
+	return newChatId
 }
 
 func removeDuplicate[T comparable](sliceList []T) []T {

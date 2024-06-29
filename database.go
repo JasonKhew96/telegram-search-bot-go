@@ -176,6 +176,10 @@ func (d *Database) GetMessageCount() (int64, error) {
 	return models.Messages().Count(d.ctx, d.db)
 }
 
+func (d *Database) GetMessage(chatId int64, msgId int64) (*models.Message, error) {
+	return models.Messages(models.MessageWhere.ChatID.EQ(chatId), models.MessageWhere.MSGID.EQ(msgId), models.MessageWhere.Deleted.EQ(false)).One(d.ctx, d.db)
+}
+
 func (d *Database) SearchMessages(chatId []int64, username string, peerId int64, texts []string, offset int) ([]*MessageAndPeer, error) {
 	queryMods := []qm.QueryMod{qm.Select("message.msg_id", "message.chat_id", "message.text", "message.timestamp", "peer.full_name", "chat.title", "COUNT() OVER() as total_count"), qm.From("message"), qm.InnerJoin("peer on peer.id = message.from_id"), qm.InnerJoin("chat on chat.id = message.chat_id"), models.MessageWhere.Deleted.EQ(false), qm.Offset(offset), qm.Limit(49), qm.OrderBy("message.timestamp DESC")}
 	for _, c := range chatId {
@@ -232,12 +236,21 @@ func (d *Database) UpsertMessage(chatId int64, fromId int64, msgId int64, text s
 	return message.Upsert(d.ctx, d.db, true, []string{"id"}, boil.Blacklist("deleted"), boil.Infer())
 }
 
+func (d *Database) DeleteMessage(chatId int64, msgId int64) error {
+	_, err := models.Messages(models.MessageWhere.ChatID.EQ(chatId), models.MessageWhere.MSGID.EQ(msgId)).DeleteAll(d.ctx, d.db)
+	return err
+}
+
 func (d *Database) GetChatPeersCount(peerId int64) (int64, error) {
 	return models.ChatPeers(models.ChatPeerWhere.PeerID.EQ(peerId)).Count(d.ctx, d.db)
 }
 
 func (d *Database) GetChatPeersFromPeerId(peerId int64) ([]*models.ChatPeer, error) {
 	return models.ChatPeers(models.ChatPeerWhere.PeerID.EQ(peerId)).All(d.ctx, d.db)
+}
+
+func (d *Database) GetChatPeerCount(chatId int64, peerId int64) (int64, error) {
+	return models.ChatPeers(models.ChatPeerWhere.ChatID.EQ(chatId), models.ChatPeerWhere.PeerID.EQ(peerId)).Count(d.ctx, d.db)
 }
 
 func (d *Database) GetChatPeers(chatId int64, peerId int64) (*models.ChatPeer, error) {
