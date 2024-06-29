@@ -14,17 +14,17 @@ import (
 	"github.com/JasonKhew96/telegram-search-bot-go/entity"
 )
 
-func importData(filename string) {
-	db, err := NewDatabase(true)
+func importData(databaseFile, importFile string) {
+	db, err := NewDatabase(databaseFile, true)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer db.Close()
 
-	if _, err := os.Stat(filename); err != nil {
+	if _, err := os.Stat(importFile); err != nil {
 		log.Fatalln(err)
 	}
-	f, err := os.Open(filename)
+	f, err := os.Open(importFile)
 	if err != nil {
 		log.Fatalln(err)
 	}

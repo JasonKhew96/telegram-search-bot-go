@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -61,9 +62,9 @@ type MessageAndPeer struct {
 	models.Chat    `boil:",bind"`
 }
 
-func NewDatabase(importMode bool) (*Database, error) {
+func NewDatabase(databaseFile string, importMode bool) (*Database, error) {
 	// boil.DebugMode = true
-	db, err := sql.Open("sqlite", "./data.db?cache=shared")
+	db, err := sql.Open("sqlite", fmt.Sprintf("%s?cache=shared", databaseFile))
 	if err != nil {
 		return nil, err
 	}

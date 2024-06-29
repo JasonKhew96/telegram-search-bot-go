@@ -21,7 +21,7 @@ type SearchBot struct {
 	loc    *time.Location
 }
 
-func StartBot(configFile string) {
+func StartBot(databaseFile, configFile string) {
 	loc, err := time.LoadLocation("Asia/Taipei")
 	if err != nil {
 		log.Fatalln(err)
@@ -32,7 +32,7 @@ func StartBot(configFile string) {
 		log.Fatalln(err)
 	}
 
-	database, err := NewDatabase(false)
+	database, err := NewDatabase(databaseFile, false)
 	if err != nil {
 		log.Fatalln(err)
 	}
