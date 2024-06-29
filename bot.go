@@ -298,20 +298,22 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	for _, mnp := range messageAndPeers {
-		text := mnp.Text
-		if len(text) > 100 {
-			text = text[:100]
+		title, err := trimUnicodeAddEllipsis(mnp.Text, 64)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
-		expandText := mnp.Text
-		if len(expandText) > 3072 {
-			expandText = expandText[:3072]
+		expandableQuote, err := trimUnicodeAddEllipsis(mnp.Text, 2048)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
 		results = append(results, gotgbot.InlineQueryResultArticle{
 			Id:          strconv.FormatInt(mnp.MSGID, 10),
-			Title:       text,
+			Title:       title,
 			Description: fmt.Sprintf("%s %s@%s", mnp.Timestamp.In(m.loc).Format(time.DateTime), mnp.FullName, mnp.Title),
 			InputMessageContent: gotgbot.InputTextMessageContent{
-				MessageText: text2Via(text2ExpandableQuote(expandText), mnp.Message.ChatID, mnp.MSGID, mnp.FullName),
+				MessageText: text2Via(text2ExpandableQuote(expandableQuote), mnp.Message.ChatID, mnp.MSGID, mnp.FullName),
 				ParseMode:   "MarkdownV2",
 				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 					IsDisabled: true,

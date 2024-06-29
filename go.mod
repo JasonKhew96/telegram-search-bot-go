@@ -4,6 +4,7 @@ go 1.21.6
 
 require (
 	github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.27
+	github.com/clipperhouse/uax29 v1.12.5
 	github.com/friendsofgo/errors v0.9.2
 	github.com/liuzl/gocc v0.0.0-20231231122217-0372e1059ca5
 	github.com/pkg/errors v0.9.1

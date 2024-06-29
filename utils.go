@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/clipperhouse/uax29/graphemes"
 )
 
 var allMdV2 = []string{"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
@@ -56,4 +58,21 @@ func removeDuplicate[T comparable](sliceList []T) []T {
 		}
 	}
 	return list
+}
+
+func trimUnicodeAddEllipsis(text string, l int) (string, error) {
+	var newByteText []byte
+	byteText := []byte(text)
+	segments := graphemes.NewSegmenter(byteText)
+	for segments.Next() && len(newByteText) <= l {
+		newByteText = append(newByteText, segments.Bytes()...)
+	}
+	if err := segments.Err(); err != nil {
+		return "", err
+	}
+	newText := string(newByteText)
+	if len(text) > len(newText) {
+		return newText + "…", nil
+	}
+	return newText, nil
 }
