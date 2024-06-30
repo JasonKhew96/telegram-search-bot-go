@@ -499,7 +499,7 @@ func (m *SearchBot) newMessageResponse(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if ctx.EditedMessage != nil {
-		if ctx.EditedMessage.EditDate-ctx.EditedMessage.Date > 120 {
+		if ctx.EditedMessage.EditDate-ctx.EditedMessage.Date > 2*24*60*60 { // 48 hours
 			return nil
 		}
 	}
