@@ -103,6 +103,15 @@ func StartBot(databaseFile, configFile string) {
 	updater.Idle()
 }
 
+func (m *SearchBot) deleteMsg(chatId, msgId int64) func() {
+	return func() {
+		_, err := m.bot.DeleteMessage(chatId, msgId, nil)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
+
 func (m *SearchBot) commandDeleteResponse(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.EffectiveChat.Type == "private" {
 		return nil
@@ -168,12 +177,20 @@ func (m *SearchBot) commandDeleteResponse(b *gotgbot.Bot, ctx *ext.Context) erro
 		return err
 	}
 	if err == sql.ErrNoRows {
-		_, err = ctx.EffectiveMessage.Reply(b, "Message not found", nil)
-		return err
+		msg, err := ctx.EffectiveMessage.Reply(b, "Message not found", nil)
+		if err != nil {
+			return err
+		}
+		time.AfterFunc(10*time.Second, m.deleteMsg(chatId, msg.MessageId))
+		return nil
 	}
 	if msg.FromID != ctx.EffectiveSender.Id() && !isAdmin {
-		_, err = ctx.EffectiveMessage.Reply(b, "Unauthorized", nil)
-		return err
+		msg, err := ctx.EffectiveMessage.Reply(b, "Unauthorized", nil)
+		if err != nil {
+			return err
+		}
+		time.AfterFunc(10*time.Second, m.deleteMsg(chatId, msg.MessageId))
+		return nil
 	}
 
 	if err := m.db.DeleteMessage(chatId, msgId); err != nil {
@@ -184,13 +201,7 @@ func (m *SearchBot) commandDeleteResponse(b *gotgbot.Bot, ctx *ext.Context) erro
 	if err != nil {
 		return err
 	}
-	go func(chatId, msgId int64) {
-		time.Sleep(10 * time.Second)
-		_, err := b.DeleteMessage(chatId, msgId, nil)
-		if err != nil {
-			log.Println(err)
-		}
-	}(deletedMessage.Chat.Id, deletedMessage.MessageId)
+	time.AfterFunc(10*time.Second, m.deleteMsg(chatId, deletedMessage.MessageId))
 
 	return nil
 }
