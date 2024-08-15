@@ -470,9 +470,6 @@ func (m *SearchBot) newMessageRequest(msg *gotgbot.Message) bool {
 	if msg.Chat.Type == "private" {
 		return false
 	}
-	if msg.From != nil && msg.From.IsBot {
-		return false
-	}
 	if msg.ViaBot != nil && msg.ViaBot.Id == m.bot.Id {
 		return false
 	}
