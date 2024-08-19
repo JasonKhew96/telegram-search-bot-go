@@ -38,7 +38,7 @@ CREATE TABLE "message" (
     "msg_id" INTEGER NOT NULL,
     "text" TEXT NOT NULL,
     "timestamp" DATETIME NOT NULL,
-    "deleted" BOOLEAN NOT NULL DEFAULT 0,
+    "deleted_at" DATETIME,
     PRIMARY KEY("id")
 );
 
@@ -86,14 +86,29 @@ func NewDatabase(databaseFile string, importMode bool) (*Database, error) {
 			{
 				Id: "1_deleted_message",
 				Up: []string{
-					`ALTER TABLE "message" ADD COLUMN "deleted" BOOLEAN NOT NULL DEFAULT 0;`,
 					`DROP INDEX IF EXISTS "idx_message_chat_id_msg_id";`,
+					`ALTER TABLE "message" ADD COLUMN "deleted" BOOLEAN NOT NULL DEFAULT 0;`,
 					`CREATE INDEX "idx_message" ON "message" ("chat_id", "from_id", "msg_id", "text", "timestamp", "deleted");`,
 				},
 				Down: []string{
-					`ALTER TABLE "message" DROP COLUMN "deleted";`,
 					`DROP INDEX IF EXISTS "idx_message";`,
+					`ALTER TABLE "message" DROP COLUMN "deleted";`,
 					`CREATE INDEX "idx_message_chat_id_msg_id" ON "message" ("chat_id", "msg_id", "text");`,
+				},
+			},
+			{
+				Id: "2_deleted_at",
+				Up: []string{
+					`DROP INDEX IF EXISTS "idx_message";`,
+					`ALTER TABLE "message" DROP COLUMN "deleted";`,
+					`ALTER TABLE "message" ADD COLUMN "deleted_at" DATETIME;`,
+					`CREATE INDEX "idx_message" ON "message" ("chat_id", "from_id", "msg_id", "text", "timestamp", "deleted_at");`,
+				},
+				Down: []string{
+					`DROP INDEX IF EXISTS "idx_message";`,
+					`ALTER TABLE "message" DROP COLUMN "deleted_at";`,
+					`ALTER TABLE "message" ADD COLUMN "deleted" BOOLEAN NOT NULL DEFAULT 0;`,
+					`CREATE INDEX "idx_message" ON "message" ("chat_id", "from_id", "msg_id", "text", "timestamp", "deleted");`,
 				},
 			},
 		},
@@ -177,11 +192,11 @@ func (d *Database) GetMessageCount() (int64, error) {
 }
 
 func (d *Database) GetMessage(chatId int64, msgId int64) (*models.Message, error) {
-	return models.Messages(models.MessageWhere.ChatID.EQ(chatId), models.MessageWhere.MSGID.EQ(msgId), models.MessageWhere.Deleted.EQ(false)).One(d.ctx, d.db)
+	return models.Messages(models.MessageWhere.ChatID.EQ(chatId), models.MessageWhere.MSGID.EQ(msgId), models.MessageWhere.DeletedAt.IsNull()).One(d.ctx, d.db)
 }
 
 func (d *Database) SearchMessages(chatId []int64, username string, peerId int64, texts []string, offset int) ([]*MessageAndPeer, error) {
-	queryMods := []qm.QueryMod{qm.Select("message.msg_id", "message.chat_id", "message.text", "message.timestamp", "peer.full_name", "chat.title", "COUNT() OVER() as total_count"), qm.From("message"), qm.InnerJoin("peer on peer.id = message.from_id"), qm.InnerJoin("chat on chat.id = message.chat_id"), models.MessageWhere.Deleted.EQ(false), qm.Offset(offset), qm.Limit(49), qm.OrderBy("message.timestamp DESC")}
+	queryMods := []qm.QueryMod{qm.Select("message.msg_id", "message.chat_id", "message.text", "message.timestamp", "peer.full_name", "chat.title", "COUNT() OVER() as total_count"), qm.From("message"), qm.InnerJoin("peer on peer.id = message.from_id"), qm.InnerJoin("chat on chat.id = message.chat_id"), models.MessageWhere.DeletedAt.IsNull(), qm.Offset(offset), qm.Limit(49), qm.OrderBy("message.timestamp DESC")}
 	for _, c := range chatId {
 		queryMods = append(queryMods, models.MessageWhere.ChatID.EQ(c))
 	}
@@ -237,7 +252,7 @@ func (d *Database) UpsertMessage(chatId int64, fromId int64, msgId int64, text s
 }
 
 func (d *Database) DeleteMessage(chatId int64, msgId int64) error {
-	_, err := models.Messages(models.MessageWhere.ChatID.EQ(chatId), models.MessageWhere.MSGID.EQ(msgId)).DeleteAll(d.ctx, d.db)
+	_, err := models.Messages(models.MessageWhere.ChatID.EQ(chatId), models.MessageWhere.MSGID.EQ(msgId)).DeleteAll(d.ctx, d.db, false)
 	return err
 }
 

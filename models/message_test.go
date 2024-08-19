@@ -31,6 +31,107 @@ func testMessages(t *testing.T) {
 	}
 }
 
+func testMessagesSoftDelete(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	o := &Message{}
+	if err = randomize.Struct(seed, o, messageDBTypes, true, messageColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Message struct: %s", err)
+	}
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+	if err = o.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Error(err)
+	}
+
+	if rowsAff, err := o.Delete(ctx, tx, false); err != nil {
+		t.Error(err)
+	} else if rowsAff != 1 {
+		t.Error("should only have deleted one row, but affected:", rowsAff)
+	}
+
+	count, err := Messages().Count(ctx, tx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
+func testMessagesQuerySoftDeleteAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	o := &Message{}
+	if err = randomize.Struct(seed, o, messageDBTypes, true, messageColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Message struct: %s", err)
+	}
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+	if err = o.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Error(err)
+	}
+
+	if rowsAff, err := Messages().DeleteAll(ctx, tx, false); err != nil {
+		t.Error(err)
+	} else if rowsAff != 1 {
+		t.Error("should only have deleted one row, but affected:", rowsAff)
+	}
+
+	count, err := Messages().Count(ctx, tx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
+func testMessagesSliceSoftDeleteAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	o := &Message{}
+	if err = randomize.Struct(seed, o, messageDBTypes, true, messageColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Message struct: %s", err)
+	}
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+	if err = o.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Error(err)
+	}
+
+	slice := MessageSlice{o}
+
+	if rowsAff, err := slice.DeleteAll(ctx, tx, false); err != nil {
+		t.Error(err)
+	} else if rowsAff != 1 {
+		t.Error("should only have deleted one row, but affected:", rowsAff)
+	}
+
+	count, err := Messages().Count(ctx, tx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
 func testMessagesDelete(t *testing.T) {
 	t.Parallel()
 
@@ -48,7 +149,7 @@ func testMessagesDelete(t *testing.T) {
 		t.Error(err)
 	}
 
-	if rowsAff, err := o.Delete(ctx, tx); err != nil {
+	if rowsAff, err := o.Delete(ctx, tx, true); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
@@ -81,7 +182,7 @@ func testMessagesQueryDeleteAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	if rowsAff, err := Messages().DeleteAll(ctx, tx); err != nil {
+	if rowsAff, err := Messages().DeleteAll(ctx, tx, true); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
@@ -116,7 +217,7 @@ func testMessagesSliceDeleteAll(t *testing.T) {
 
 	slice := MessageSlice{o}
 
-	if rowsAff, err := slice.DeleteAll(ctx, tx); err != nil {
+	if rowsAff, err := slice.DeleteAll(ctx, tx, true); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
@@ -568,7 +669,7 @@ func testMessagesSelect(t *testing.T) {
 }
 
 var (
-	messageDBTypes = map[string]string{`ID`: `TEXT`, `ChatID`: `INTEGER`, `FromID`: `INTEGER`, `MSGID`: `INTEGER`, `Text`: `TEXT`, `Timestamp`: `DATETIME`, `Deleted`: `BOOLEAN`}
+	messageDBTypes = map[string]string{`ID`: `TEXT`, `ChatID`: `INTEGER`, `FromID`: `INTEGER`, `MSGID`: `INTEGER`, `Text`: `TEXT`, `Timestamp`: `DATETIME`, `DeletedAt`: `DATETIME`}
 	_              = bytes.MinRead
 )
 

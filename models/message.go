@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -29,7 +30,7 @@ type Message struct {
 	MSGID     int64     `boil:"msg_id" json:"msg_id" toml:"msg_id" yaml:"msg_id"`
 	Text      string    `boil:"text" json:"text" toml:"text" yaml:"text"`
 	Timestamp time.Time `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
-	Deleted   bool      `boil:"deleted" json:"deleted" toml:"deleted" yaml:"deleted"`
+	DeletedAt null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
 	R *messageR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L messageL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,7 +43,7 @@ var MessageColumns = struct {
 	MSGID     string
 	Text      string
 	Timestamp string
-	Deleted   string
+	DeletedAt string
 }{
 	ID:        "id",
 	ChatID:    "chat_id",
@@ -50,7 +51,7 @@ var MessageColumns = struct {
 	MSGID:     "msg_id",
 	Text:      "text",
 	Timestamp: "timestamp",
-	Deleted:   "deleted",
+	DeletedAt: "deleted_at",
 }
 
 var MessageTableColumns = struct {
@@ -60,7 +61,7 @@ var MessageTableColumns = struct {
 	MSGID     string
 	Text      string
 	Timestamp string
-	Deleted   string
+	DeletedAt string
 }{
 	ID:        "message.id",
 	ChatID:    "message.chat_id",
@@ -68,7 +69,7 @@ var MessageTableColumns = struct {
 	MSGID:     "message.msg_id",
 	Text:      "message.text",
 	Timestamp: "message.timestamp",
-	Deleted:   "message.deleted",
+	DeletedAt: "message.deleted_at",
 }
 
 // Generated where
@@ -94,6 +95,30 @@ func (w whereHelpertime_Time) GTE(x time.Time) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
+type whereHelpernull_Time struct{ field string }
+
+func (w whereHelpernull_Time) EQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Time) NEQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Time) LT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Time) LTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Time) GT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Time) GTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpernull_Time) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Time) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
 var MessageWhere = struct {
 	ID        whereHelperstring
 	ChatID    whereHelperint64
@@ -101,7 +126,7 @@ var MessageWhere = struct {
 	MSGID     whereHelperint64
 	Text      whereHelperstring
 	Timestamp whereHelpertime_Time
-	Deleted   whereHelperbool
+	DeletedAt whereHelpernull_Time
 }{
 	ID:        whereHelperstring{field: "\"message\".\"id\""},
 	ChatID:    whereHelperint64{field: "\"message\".\"chat_id\""},
@@ -109,7 +134,7 @@ var MessageWhere = struct {
 	MSGID:     whereHelperint64{field: "\"message\".\"msg_id\""},
 	Text:      whereHelperstring{field: "\"message\".\"text\""},
 	Timestamp: whereHelpertime_Time{field: "\"message\".\"timestamp\""},
-	Deleted:   whereHelperbool{field: "\"message\".\"deleted\""},
+	DeletedAt: whereHelpernull_Time{field: "\"message\".\"deleted_at\""},
 }
 
 // MessageRels is where relationship names are stored.
@@ -129,9 +154,9 @@ func (*messageR) NewStruct() *messageR {
 type messageL struct{}
 
 var (
-	messageAllColumns            = []string{"id", "chat_id", "from_id", "msg_id", "text", "timestamp", "deleted"}
+	messageAllColumns            = []string{"id", "chat_id", "from_id", "msg_id", "text", "timestamp", "deleted_at"}
 	messageColumnsWithoutDefault = []string{"id", "chat_id", "from_id", "msg_id", "text", "timestamp"}
-	messageColumnsWithDefault    = []string{"deleted"}
+	messageColumnsWithDefault    = []string{"deleted_at"}
 	messagePrimaryKeyColumns     = []string{"id"}
 	messageGeneratedColumns      = []string{}
 )
@@ -443,7 +468,7 @@ func (q messageQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bo
 
 // Messages retrieves all the records using an executor.
 func Messages(mods ...qm.QueryMod) messageQuery {
-	mods = append(mods, qm.From("\"message\""))
+	mods = append(mods, qm.From("\"message\""), qmhelper.WhereIsNull("\"message\".\"deleted_at\""))
 	q := NewQuery(mods...)
 	if len(queries.GetSelect(q)) == 0 {
 		queries.SetSelect(q, []string{"\"message\".*"})
@@ -462,7 +487,7 @@ func FindMessage(ctx context.Context, exec boil.ContextExecutor, iD string, sele
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"message\" where \"id\"=?", sel,
+		"select %s from \"message\" where \"id\"=? and \"deleted_at\" is null", sel,
 	)
 
 	q := queries.Raw(query, iD)
@@ -808,7 +833,7 @@ func (o *Message) Upsert(ctx context.Context, exec boil.ContextExecutor, updateO
 
 // Delete deletes a single Message record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *Message) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *Message) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
 		return 0, errors.New("models: no Message provided for delete")
 	}
@@ -817,8 +842,26 @@ func (o *Message) Delete(ctx context.Context, exec boil.ContextExecutor) (int64,
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), messagePrimaryKeyMapping)
-	sql := "DELETE FROM \"message\" WHERE \"id\"=?"
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), messagePrimaryKeyMapping)
+		sql = "DELETE FROM \"message\" WHERE \"id\"=?"
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		o.DeletedAt = null.TimeFrom(currTime)
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE \"message\" SET %s WHERE \"id\"=?",
+			strmangle.SetParamNames("\"", "\"", 0, wl),
+		)
+		valueMapping, err := queries.BindMapping(messageType, messageMapping, append(wl, messagePrimaryKeyColumns...))
+		if err != nil {
+			return 0, err
+		}
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), valueMapping)
+	}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -843,12 +886,17 @@ func (o *Message) Delete(ctx context.Context, exec boil.ContextExecutor) (int64,
 }
 
 // DeleteAll deletes all matching rows.
-func (q messageQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q messageQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if q.Query == nil {
 		return 0, errors.New("models: no messageQuery provided for delete all")
 	}
 
-	queries.SetDelete(q.Query)
+	if hardDelete {
+		queries.SetDelete(q.Query)
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		queries.SetUpdate(q.Query, M{"deleted_at": currTime})
+	}
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
@@ -864,7 +912,7 @@ func (q messageQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) 
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o MessageSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o MessageSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
@@ -877,14 +925,31 @@ func (o MessageSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) 
 		}
 	}
 
-	var args []interface{}
-	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), messagePrimaryKeyMapping)
-		args = append(args, pkeyArgs...)
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), messagePrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+		}
+		sql = "DELETE FROM \"message\" WHERE " +
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, messagePrimaryKeyColumns, len(o))
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), messagePrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+			obj.DeletedAt = null.TimeFrom(currTime)
+		}
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE \"message\" SET %s WHERE "+
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, messagePrimaryKeyColumns, len(o)),
+			strmangle.SetParamNames("\"", "\"", 0, wl),
+		)
+		args = append([]interface{}{currTime}, args...)
 	}
-
-	sql := "DELETE FROM \"message\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, messagePrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -939,7 +1004,8 @@ func (o *MessageSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor)
 	}
 
 	sql := "SELECT \"message\".* FROM \"message\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, messagePrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, messagePrimaryKeyColumns, len(*o)) +
+		"and \"deleted_at\" is null"
 
 	q := queries.Raw(sql, args...)
 
@@ -956,7 +1022,7 @@ func (o *MessageSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor)
 // MessageExists checks if the Message row exists.
 func MessageExists(ctx context.Context, exec boil.ContextExecutor, iD string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"message\" where \"id\"=? limit 1)"
+	sql := "select exists(select 1 from \"message\" where \"id\"=? and \"deleted_at\" is null limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
