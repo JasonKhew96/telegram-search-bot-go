@@ -48,7 +48,7 @@ CREATE INDEX "idx_message" ON "message" (
     "msg_id",
     "text",
     "timestamp",
-    "deleted"
+    "deleted_at"
 );
 
 CREATE TABLE "peer" (
@@ -248,7 +248,7 @@ func (d *Database) UpsertMessage(chatId int64, fromId int64, msgId int64, text s
 		Text:      text,
 		Timestamp: time.Unix(timestamp, 0),
 	}
-	return message.Upsert(d.ctx, d.db, true, []string{"id"}, boil.Blacklist("deleted"), boil.Infer())
+	return message.Upsert(d.ctx, d.db, true, []string{"id"}, boil.Blacklist("deleted_at"), boil.Infer())
 }
 
 func (d *Database) DeleteMessage(chatId int64, msgId int64) error {
