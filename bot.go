@@ -484,7 +484,7 @@ func (m *SearchBot) newMessageRequest(msg *gotgbot.Message) bool {
 	if msg.ViaBot != nil && msg.ViaBot.Id == m.bot.Id {
 		return false
 	}
-	if msg.GetText() == "" {
+	if msg.GetText() == "" && msg.Poll == nil {
 		return false
 	}
 	chat, err := m.db.GetChat(msg.Chat.Id)
@@ -513,6 +513,17 @@ func (m *SearchBot) newMessageResponse(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	text := ctx.EffectiveMessage.GetText()
+
+	if ctx.EffectiveMessage.Poll != nil {
+		poll := ctx.EffectiveMessage.Poll
+		text = poll.Question
+		if poll.Options != nil {
+			for _, option := range poll.Options {
+				text += fmt.Sprintf("\n- %s", option.Text)
+			}
+		}
+	}
+
 	return m.db.UpsertMessage(ctx.EffectiveChat.Id, ctx.EffectiveSender.Id(), ctx.EffectiveMessage.MessageId, text, ctx.EffectiveMessage.Date)
 }
 
