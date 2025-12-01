@@ -74,7 +74,7 @@ type MessageAndPeer struct {
 }
 
 func NewDatabase(databaseFile string, importMode bool) (*Database, error) {
-	// boil.DebugMode = true
+	boil.DebugMode = true
 	db, err := sql.Open("sqlite", fmt.Sprintf("%s?cache=shared", databaseFile))
 	if err != nil {
 		return nil, err
@@ -195,7 +195,7 @@ func (d *Database) GetMessage(chatId int64, msgId int64) (*models.Message, error
 	return models.Messages(models.MessageWhere.ChatID.EQ(chatId), models.MessageWhere.MSGID.EQ(msgId), models.MessageWhere.DeletedAt.IsNull()).One(d.ctx, d.db)
 }
 
-func (d *Database) SearchMessages(chatId []int64, username string, peerId int64, texts []string, offset int) ([]*MessageAndPeer, error) {
+func (d *Database) SearchMessages(chatId []int64, username string, peerId int64, texts []string, msgId int64, offset int) ([]*MessageAndPeer, error) {
 	queryMods := []qm.QueryMod{qm.Select("message.msg_id", "message.chat_id", "message.text", "message.timestamp", "peer.full_name", "chat.title", "COUNT() OVER() as total_count"), qm.From("message"), qm.InnerJoin("peer on peer.id = message.from_id"), qm.InnerJoin("chat on chat.id = message.chat_id"), models.MessageWhere.DeletedAt.IsNull(), qm.Offset(offset), qm.Limit(49), qm.OrderBy("message.timestamp DESC")}
 	for _, c := range chatId {
 		queryMods = append(queryMods, models.MessageWhere.ChatID.EQ(c))
@@ -205,6 +205,9 @@ func (d *Database) SearchMessages(chatId []int64, username string, peerId int64,
 	}
 	if peerId != 0 {
 		queryMods = append(queryMods, models.MessageWhere.FromID.EQ(peerId))
+	}
+	if msgId != 0 {
+		queryMods = append(queryMods, models.MessageWhere.MSGID.EQ(msgId))
 	}
 	for _, q := range texts {
 		t, err := d.s2t.Convert(q)

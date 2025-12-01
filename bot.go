@@ -349,6 +349,10 @@ func (m *SearchBot) inlineQueryRequest(iq *gotgbot.InlineQuery) bool {
 	return true
 }
 
+func IsLink(text string) bool {
+	return strings.HasPrefix(text, "t.me/") || strings.HasPrefix(text, "https://t.me/") || strings.HasPrefix(text, "http://t.me/")
+}
+
 func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error {
 	count, err := m.db.GetChatPeersCount(ctx.InlineQuery.From.Id)
 	if err != nil && err != sql.ErrNoRows {
@@ -387,6 +391,7 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 	splits := strings.Split(ctx.InlineQuery.Query, " ")
 	peerId := int64(0)
 	username := ""
+	msgId := int64(0)
 	queries := []string{}
 	page := 1
 
@@ -395,7 +400,21 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 		if err != nil {
 			username = splits[0][1:]
 		}
+	} else if IsLink(splits[0]) {
+		parser, err := NewLinkParser()
+		if err == nil {
+			link, err := parser.ParseLink(splits[0])
+			if err == nil {
+				if link.ChatId != 0 {
+					chatIds = []int64{link.ChatId}
+				}
+				if link.MessageId != 0 {
+					msgId = link.MessageId
+				}
+			}
+		}
 	}
+
 	n, err := strconv.Atoi(splits[len(splits)-1])
 	if err == nil && n > 1 {
 		page = n
@@ -404,18 +423,21 @@ func (m *SearchBot) inlineQueryResponse(b *gotgbot.Bot, ctx *ext.Context) error 
 	if page > 1 {
 		maxIndex -= 1
 	}
-	for i := 0; i < maxIndex; i++ {
-		q := splits[i]
-		if strings.HasPrefix(q, "@") {
-			continue
+
+	if !IsLink(splits[0]) {
+		for i := 0; i < maxIndex; i++ {
+			q := splits[i]
+			if strings.HasPrefix(q, "@") {
+				continue
+			}
+			if q == "" {
+				continue
+			}
+			queries = append(queries, q)
 		}
-		if q == "" {
-			continue
-		}
-		queries = append(queries, q)
 	}
 
-	messageAndPeers, err := m.db.SearchMessages(chatIds, username, peerId, queries, (page-1)*49)
+	messageAndPeers, err := m.db.SearchMessages(chatIds, username, peerId, queries, msgId, (page-1)*49)
 	if err != nil {
 		return err
 	}
